@@ -13,35 +13,40 @@ from udacity.common import final_project_sql_statements
 default_args = {
     'owner': 'udacity',
     'start_date': pendulum.now(),
+    'retries':3,
+    'retry_delay': timedelta(minutes = 5),
+    'catchup': False,
+    'depends_on_past': False 
 }
 
 @dag(
     default_args=default_args,
     description='Load and transform data in Redshift with Airflow',
-    schedule_interval='@hourly'
+    schedule_interval='@hourly',
+    max_active_runs = 1
 )
 def final_project():
 
     start_operator = DummyOperator(task_id='Begin_execution')
 
     stage_events_to_redshift = StageToRedshiftOperator(
-        task_id='Stage_events',
-        redshift_conn_id='redshift',
-        aws_credentials_id='aws_credentials',
-        s3_bucket='hairflow',
-        s3_key='log_data',
-        json_path_option='s3://hairflow/log_json_path.json',
-        table='staging_events'
+        task_id = 'Stage_events',
+        table = 'staging_events',
+        redshift_conn_id = 'redshift',
+        aws_credentials_id = 'aws_credentials',
+        s3_bucket = 'udacity-dend',
+        s3_key = 'log-data',
+        opt_json_path = 's3://udacity-dend/log_json_path.json'
     )
 
     stage_songs_to_redshift = StageToRedshiftOperator(
         task_id='Stage_songs',
         redshift_conn_id='redshift',
         aws_credentials_id='aws_credentials',
-        s3_bucket='hairflow',
-        s3_key='song_data',
-        json_path_option='s3://hairflow/song_json_path.json',
-        table='staging_events'
+        table='staging_songs',
+        s3_bucket='udacity-dend',
+        s3_key='song-data',
+        opt_json_path='s3://udacity-dend/song_json_path.json'
     )
 
     load_songplays_table = LoadFactOperator(
