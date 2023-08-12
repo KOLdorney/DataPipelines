@@ -9,14 +9,14 @@ class DataQualityOperator(BaseOperator):
     @apply_defaults
     def __init__(self,
                  redshift_conn_id="",
-                 sql_check="",
-                 expected="",
+                 table="",
+                 sql_tests=[],
                  *args, **kwargs):
 
         super(DataQualityOperator, self).__init__(*args, **kwargs)
         self.redshift_conn_id = redshift_conn_id
-        self.sql_check = sql_check
-        self.expected = expected
+        self.sql_tests = sql_tests
+        self.table = table
 
     def execute(self, context):
         redshift = PostgresHook(self.redshift_conn_id)
@@ -28,8 +28,10 @@ class DataQualityOperator(BaseOperator):
             raise ValueError(f"Data quality check failed. {self.table} contained 0 rows")
         self.log.info(f"Data quality on table {self.table} check passed with {records[0][0]} records")
         
-        check = redshift.get_records(self.sql_check)
-        if check != self.expected:
-            raise ValueError(f"Custom data quality check failed.")
-        else:
-            self.log.info('DataQualityOperator successful')
+        for test in self.sql_tests:
+            result = redshift.get_records(test['check_sql'])
+            actual_result = result[0][0]
+            expected_result = test['expected_result']
+            if actual_result != expected_result:
+                raise ValueError("Data quality check failed.")
+        self.log.info('DataQualityOperator successful')
